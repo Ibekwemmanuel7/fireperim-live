@@ -21,6 +21,8 @@ from fireperim.config import DEFAULT_REGION, DEFAULT_SENSORS, REGIONS, SENSORS
 from fireperim.ingest.firms import FirmsAuthError, FirmsSource
 from fireperim.ingest.base import DetectionSource
 from fireperim.processing import build_events, cluster_detections
+from fireperim.processing.risk import enrich_events
+from fireperim.weather import fetch_weather
 from fireperim.viz.maps import build_detection_map
 
 st.set_page_config(page_title="FirePerim Live", page_icon="🔥", layout="wide",
@@ -50,6 +52,12 @@ def _load_sample(region_key):
     return gpd.GeoDataFrame(
         norm, geometry=gpd.points_from_xy(norm["longitude"], norm["latitude"]),
         crs="EPSG:4326")
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def load_weather(points):
+    """Current weather per event centroid (15-min cache). Key-less Open-Meteo."""
+    return fetch_weather(list(points))
 
 
 def get_map_key():
@@ -90,8 +98,8 @@ def sidebar():
     st.sidebar.divider()
     st.sidebar.markdown(
         "**Pipeline roadmap**\n\n1. ✅ Ingest (FIRMS / VIIRS)\n2. ✅ Cluster (DBSCAN)\n"
-        "3. ✅ Perimeters (alpha shapes)\n4. ⏳ Fire weather (Open-Meteo)\n"
-        "5. ⏳ Risk score\n6. ⏳ Export (GeoJSON / KMZ)")
+        "3. ✅ Perimeters (alpha shapes)\n4. ✅ Fire weather (Open-Meteo)\n"
+        "5. ✅ Risk score\n6. ⏳ Export (GeoJSON / KMZ)")
     return region_key, tuple(sensors), day_range, base, use_sample, cluster_params
 
 
@@ -108,16 +116,19 @@ def header(mode, region_label):
 
 
 def metrics(gdf, events):
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Detections", f"{len(gdf):,}")
     c2.metric("Fire events", f"{len(events):,}")
-    if len(gdf):
-        c3.metric("Total FRP", f"{gdf['frp_mw'].sum(skipna=True):,.0f} MW")
-        total_area = events["area_ha"].sum() if len(events) else 0.0
-        c4.metric("Total area", f"{total_area:,.0f} ha")
+    total_area = events["area_ha"].sum() if len(events) else 0.0
+    c3.metric("Total area", f"{total_area:,.0f} ha")
+    c4.metric("Total FRP", f"{gdf['frp_mw'].sum(skipna=True):,.0f} MW" if len(gdf) else "-")
+    if len(events) and "risk_score" in events.columns and events["risk_score"].notna().any():
+        top = events.loc[events["risk_score"].idxmax()]
+        elevated = int((events["risk_class"].isin(["High", "Extreme"])).sum())
+        c5.metric("Top spread risk", f"{top['risk_class']} ({top['risk_score']:.0f})",
+                  f"{elevated} elevated" if elevated else None)
     else:
-        c3.metric("Total FRP", "-")
-        c4.metric("Total area", "-")
+        c5.metric("Top spread risk", "-")
 
 
 def main():
@@ -139,6 +150,10 @@ def main():
     clustered = cluster_detections(gdf, eps_m=cparams["eps_m"],
                                    min_samples=cparams["min_samples"])
     events = build_events(clustered, alpha_per_m=cparams["alpha"])
+    if len(events):
+        pts = tuple((float(r.centroid_lat), float(r.centroid_lon))
+                    for r in events.itertuples())
+        events = enrich_events(events, load_weather(pts))
     header(mode, region.label)
     metrics(gdf, events)
     if len(gdf) == 0:
@@ -152,9 +167,18 @@ def main():
         st.caption("DBSCAN groups detections into events; alpha shapes trace each "
                    "perimeter. Agency-ready GeoJSON/KMZ export lands on Day 4.")
         show = events.drop(columns="geometry").copy()
-        for col in ("total_frp_mw", "max_frp_mw", "mean_frp_mw", "area_ha", "perimeter_km"):
-            show[col] = show[col].round(1)
-        st.dataframe(show.set_index("event_id"), use_container_width=True)
+        round_cols = ["total_frp_mw", "max_frp_mw", "mean_frp_mw", "area_ha",
+                      "perimeter_km", "risk_score", "wind_speed_ms", "wind_dir_deg",
+                      "rh_pct", "temp_c", "wind_gust_ms"]
+        for col in round_cols:
+            if col in show.columns:
+                show[col] = show[col].round(1)
+        order = ["label", "risk_class", "risk_score", "wind_speed_ms", "wind_dir_deg",
+                 "rh_pct", "temp_c", "n_detections", "area_ha", "perimeter_km",
+                 "total_frp_mw", "max_frp_mw", "first_seen", "last_seen", "sensors"]
+        order = [c for c in order if c in show.columns]
+        st.dataframe(show.set_index("event_id")[order[1:] if order and order[0] == "label" else order],
+                     use_container_width=True)
     else:
         st.info("Detections found, but none dense enough to form a fire event at the "
                 "current settings. Lower 'Min detections per event' or widen the radius.")

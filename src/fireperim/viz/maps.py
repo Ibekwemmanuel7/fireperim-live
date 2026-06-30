@@ -55,6 +55,8 @@ def build_detection_map(detections, region, base="Dark", events=None):
             folium.TileLayer(t, attr=a, name=name).add_to(fmap)
     if events is not None and len(events) > 0:
         _add_event_perimeters(fmap, events)
+        if "wind_dir_deg" in events.columns:
+            _add_wind_arrows(fmap, events)
     detect_layer = folium.FeatureGroup(name=f"Detections ({len(detections)})")
     for _, row in detections.iterrows():
         frp = row.get("frp_mw")
@@ -89,6 +91,14 @@ def _popup_html(row) -> str:
             f"<b>Lat/Lon:</b> {_fmt(row.get('latitude'))}, {_fmt(row.get('longitude'))}</div>")
 
 
+_RISK_COLORS = {"Low": "#2E9E5B", "Moderate": "#E0B43A",
+                "High": "#E8552B", "Extreme": "#B71C1C"}
+
+
+def _risk_color(label):
+    return _RISK_COLORS.get(label, "#FFB24C")
+
+
 def _event_color(total_frp: float | None) -> str:
     if total_frp is None or total_frp != total_frp:
         return "#FFB24C"
@@ -108,7 +118,9 @@ def _add_event_perimeters(fmap, events) -> None:
         events.sort_values("total_frp_mw", ascending=False).head(10)["event_id"].tolist()
     )
     for _, ev in events.iterrows():
-        color = _event_color(ev.get("total_frp_mw"))
+        rc = ev.get("risk_class")
+        color = _risk_color(rc) if rc and rc == rc and rc != "Unknown" \
+            else _event_color(ev.get("total_frp_mw"))
         folium.GeoJson(
             ev["geometry"].__geo_interface__,
             style_function=lambda _f, c=color: {"fillColor": c, "color": c,
@@ -140,7 +152,30 @@ def _event_popup_html(ev) -> str:
             f"<b>Total FRP:</b> {_fmt(ev.get('total_frp_mw'))} MW<br>"
             f"<b>Max FRP:</b> {_fmt(ev.get('max_frp_mw'))} MW<br>"
             f"<b>Active:</b> {span}<br><b>Sensors:</b> {ev.get('sensors','-')}<br>"
+            f"<b>Spread risk:</b> {ev.get('risk_class','-')} ({_fmt(ev.get('risk_score'))})<br>"
+            f"<b>Wind:</b> {_fmt(ev.get('wind_speed_ms'))} m/s @ {_fmt(ev.get('wind_dir_deg'))} deg<br>"
+            f"<b>RH:</b> {_fmt(ev.get('rh_pct'))}%  <b>Temp:</b> {_fmt(ev.get('temp_c'))} C<br>"
             f"<span style='color:#888;'>perimeter: {ev.get('perimeter_method','-')}</span></div>")
+
+
+def _add_wind_arrows(fmap, events) -> None:
+    """Downwind (spread-direction) arrows at each event centroid."""
+    layer = folium.FeatureGroup(name="Wind / spread direction")
+    for _, ev in events.iterrows():
+        wd = ev.get("wind_dir_deg")
+        ws = ev.get("wind_speed_ms")
+        if wd is None or wd != wd:
+            continue
+        bearing = (float(wd) + 180.0) % 360.0  # wind blows FROM wd; spread goes downwind
+        size = int(16 + min(20, (ws or 0) * 1.5))
+        html = (f"<div style='transform:rotate({bearing:.0f}deg);font-size:{size}px;"
+                f"color:#4FC3F7;text-shadow:0 0 3px #000;line-height:1;'>&#8593;</div>")
+        folium.map.Marker(
+            [ev["centroid_lat"], ev["centroid_lon"]],
+            icon=folium.DivIcon(html=html, icon_size=(34, 34), icon_anchor=(17, 17)),
+            tooltip=f"Wind {_fmt(ws)} m/s -> spread {bearing:.0f} deg",
+        ).add_to(layer)
+    layer.add_to(fmap)
 
 
 def _add_legend(fmap) -> None:
