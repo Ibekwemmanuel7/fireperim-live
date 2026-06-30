@@ -69,14 +69,14 @@ def sidebar():
         options=list(SENSORS), default=list(DEFAULT_SENSORS),
         format_func=lambda s: SENSORS[s],
         help="VIIRS at 375 m is the closest free analog to an airborne IR scanner.")
-    day_range = st.sidebar.slider("Look-back window (days)", 1, 5, 1,
+    day_range = st.sidebar.slider("Look-back window (days)", 1, 5, 3,
         help="FIRMS Area API returns the most recent N days (max 5).")
     base = st.sidebar.radio("Base map", options=["Dark", "Satellite", "Terrain"],
         horizontal=True)
     with st.sidebar.expander("Clustering & perimeters", expanded=False):
         eps_km = st.slider("DBSCAN radius (km)", 0.5, 5.0, 1.5, 0.5,
             help="Max distance between detections in the same fire event.")
-        min_samples = st.slider("Min detections per event", 2, 10, 4, 1,
+        min_samples = st.slider("Min detections per event", 2, 10, 5, 1,
             help="Fewer than this within the radius = noise, not a fire.")
         alpha = st.slider("Alpha (perimeter tightness)", 0.0, 0.002, 0.0005, 0.0001,
             format="%.4f", help="0 = convex hull; higher = tighter perimeter.")

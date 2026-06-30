@@ -102,24 +102,28 @@ def _event_color(total_frp: float | None) -> str:
 
 
 def _add_event_perimeters(fmap, events) -> None:
-    """Draw each fire event's perimeter polygon with a stat popup + label."""
+    """Draw perimeter polygons; label only the largest events to avoid clutter."""
     layer = folium.FeatureGroup(name=f"Fire perimeters ({len(events)})")
+    label_ids = set(
+        events.sort_values("total_frp_mw", ascending=False).head(10)["event_id"].tolist()
+    )
     for _, ev in events.iterrows():
         color = _event_color(ev.get("total_frp_mw"))
         folium.GeoJson(
             ev["geometry"].__geo_interface__,
             style_function=lambda _f, c=color: {"fillColor": c, "color": c,
-                                                "weight": 2.5, "fillOpacity": 0.18},
+                                                "weight": 2.5, "fillOpacity": 0.2},
             popup=folium.Popup(_event_popup_html(ev), max_width=280),
             tooltip=f"{ev.get('label','Event')} - {_fmt(ev.get('area_ha'))} ha",
         ).add_to(layer)
-        folium.map.Marker(
-            [ev["centroid_lat"], ev["centroid_lon"]],
-            icon=folium.DivIcon(html=(
-                f"<div style='font-family:sans-serif;font-size:11px;font-weight:700;"
-                f"color:#fff;text-shadow:0 0 3px #000;white-space:nowrap;'>"
-                f"{ev.get('label','')}</div>")),
-        ).add_to(layer)
+        if ev.get("event_id") in label_ids:
+            folium.map.Marker(
+                [ev["centroid_lat"], ev["centroid_lon"]],
+                icon=folium.DivIcon(html=(
+                    f"<div style='font-family:sans-serif;font-size:11px;font-weight:700;"
+                    f"color:#fff;text-shadow:0 0 3px #000;white-space:nowrap;'>"
+                    f"{ev.get('label','')}</div>")),
+            ).add_to(layer)
     layer.add_to(fmap)
 
 
