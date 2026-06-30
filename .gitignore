@@ -25,3 +25,6 @@ data/cache/
 .idea/
 .vscode/
 *.swp
+
+# transient doc-render previews
+.preview/
