@@ -1,0 +1,17 @@
+[project]
+name = "fireperim-live"
+version = "0.1.0"
+description = "Satellite-data analog of the ORBIT Data Engine: VIIRS thermal -> fire events -> agency-ready perimeters."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]

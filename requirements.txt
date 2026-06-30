@@ -1,0 +1,29 @@
+# FirePerim Live — runtime dependencies
+# Pinned loosely for Streamlit Cloud compatibility; tighten before the interview.
+
+streamlit>=1.36,<2
+streamlit-folium>=0.21
+folium>=0.16
+
+# Geospatial core (mirrors the ORBIT / EmberWorks stack)
+geopandas>=0.14
+shapely>=2.0
+pyproj>=3.6
+rtree>=1.2
+
+# Clustering + perimeter extraction (Day 2)
+scikit-learn>=1.4
+alphashape>=1.3
+numpy>=1.26
+pandas>=2.1
+
+# Data access
+requests>=2.31
+
+# Export (Day 4): KMZ writer
+simplekml>=1.3
+
+# Optional raster libs — used later for the imagery/COG analog of ORBIT.
+# Kept out of the hard requirements so Streamlit Cloud builds stay fast.
+# rasterio>=1.3
+# xarray>=2024.3

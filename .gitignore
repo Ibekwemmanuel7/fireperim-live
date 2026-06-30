@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Secrets — NEVER commit your FIRMS MAP_KEY
+.streamlit/secrets.toml
+.env
+
+# Caches / data
+.cache/
+*.log
+data/cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
