@@ -23,6 +23,7 @@ from fireperim.ingest.base import DetectionSource
 from fireperim.processing import build_events, cluster_detections
 from fireperim.processing.risk import enrich_events
 from fireperim.weather import fetch_weather
+from fireperim.export import events_to_geojson, events_to_kmz
 from fireperim.viz.maps import build_detection_map
 
 st.set_page_config(page_title="FirePerim Live", page_icon="🔥", layout="wide",
@@ -99,7 +100,7 @@ def sidebar():
     st.sidebar.markdown(
         "**Pipeline roadmap**\n\n1. ✅ Ingest (FIRMS / VIIRS)\n2. ✅ Cluster (DBSCAN)\n"
         "3. ✅ Perimeters (alpha shapes)\n4. ✅ Fire weather (Open-Meteo)\n"
-        "5. ✅ Risk score\n6. ⏳ Export (GeoJSON / KMZ)")
+        "5. ✅ Risk score\n6. ✅ Export (GeoJSON / KMZ)")
     return region_key, tuple(sensors), day_range, base, use_sample, cluster_params
 
 
@@ -179,6 +180,19 @@ def main():
         order = [c for c in order if c in show.columns]
         st.dataframe(show.set_index("event_id")[order[1:] if order and order[0] == "label" else order],
                      use_container_width=True)
+
+        st.markdown("**Agency-ready export**")
+        st.caption("Georeferenced perimeters with stats, weather, and risk - the "
+                   "outputs ORBIT publishes to agency GIS (ICS / CAL FIRE / NIFC).")
+        e1, e2 = st.columns(2)
+        e1.download_button(
+            "GeoJSON  (web GIS / ArcGIS / QGIS)", events_to_geojson(events),
+            file_name="fireperim_events.geojson", mime="application/geo+json",
+            use_container_width=True)
+        e2.download_button(
+            "KMZ  (Google Earth / field SA)", events_to_kmz(events),
+            file_name="fireperim_events.kmz",
+            mime="application/vnd.google-earth.kmz", use_container_width=True)
     else:
         st.info("Detections found, but none dense enough to form a fire event at the "
                 "current settings. Lower 'Min detections per event' or widen the radius.")

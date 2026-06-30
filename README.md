@@ -28,7 +28,7 @@ downstream knows or cares whether the heat came from a satellite or an aircraft.
 | 3. Extract perimeters (alpha shapes) | `processing/perimeter.py` | ✅ Day 2 |
 | 4. Fire weather (Open-Meteo) | `weather/open_meteo.py` | ✅ Day 3 |
 | 5. Spread-risk score | `processing/risk.py` | ✅ Day 3 |
-| 6. Export GeoJSON + KMZ | `export/` | ⏳ Day 4 |
+| 6. Export GeoJSON + KMZ | `export/` | ✅ Day 4 |
 | 7. Interactive map (Folium/Leaflet) | `viz/maps.py` | ✅ Day 1 |
 
 ---
