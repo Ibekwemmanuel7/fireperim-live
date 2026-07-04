@@ -1,0 +1,16 @@
+# Render blueprint — deploys the FastAPI backend on the free tier.
+services:
+  - type: web
+    name: fireperim-api
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r api/requirements.txt"
+    startCommand: "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: FIRMS_MAP_KEY
+        sync: false        # set in the Render dashboard (your FIRMS key)
+      - key: CORS_ORIGINS
+        sync: false        # e.g. https://your-app.vercel.app  (or * for any)
