@@ -1,0 +1,6 @@
+# Airborne raster track — extra deps for regenerating demo artifacts offline.
+# NOT needed at runtime by the API, Streamlit, or React app (artifacts are
+# pre-generated into web/public/ir/ and committed).
+rasterio>=1.3
+pillow>=10.0
+# (numpy, geopandas, shapely, pyproj come from the main requirements.txt)

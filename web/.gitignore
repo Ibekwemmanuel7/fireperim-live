@@ -4,3 +4,7 @@ dist/
 .env.local
 *.log
 .vercel
+
+# superseded raster run (locked on disk)
+public/airborne/
+public/ir/*.tmp

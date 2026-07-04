@@ -1,7 +1,7 @@
 import { REGIONS, BASEMAPS } from '../config'
 
 export default function Header({ region, setRegion, days, setDays, basemap, setBasemap,
-  mode, updated, onRefresh, loading }) {
+  mode, updated, onRefresh, loading, airborne, setAirborne }) {
   return (
     <header className="h-14 shrink-0 bg-panel2/95 backdrop-blur border-b border-[#242a35]
       flex items-center gap-3 px-4 z-10">
@@ -16,6 +16,14 @@ export default function Header({ region, setRegion, days, setDays, basemap, setB
         options={[1, 2, 3, 4, 5].map((d) => [String(d), String(d)])} />
       <Select label="Basemap" value={basemap} onChange={setBasemap}
         options={Object.keys(BASEMAPS).map((k) => [k, k])} />
+
+      <button onClick={() => setAirborne(!airborne)}
+        title="Overlay a simulated airborne IR scanner frame (raster → COG → perimeter)"
+        className={`text-xs font-semibold px-3 py-1.5 rounded-md border transition ${
+          airborne ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                   : 'bg-[#12151C] border-[#2c3543] text-gray-300 hover:border-[#3a4453]'}`}>
+        {airborne ? '● Airborne IR' : '○ Airborne IR'}
+      </button>
 
       <div className="ml-auto flex items-center gap-3">
         {updated && <span className="hidden md:inline text-xs text-gray-500">

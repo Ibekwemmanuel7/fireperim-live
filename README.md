@@ -166,6 +166,9 @@ scripts/fetch_sample.py    Refresh the sample from live FIRMS
 tests/                     pipeline + API tests
 api/                       FastAPI service (events/detections/export)  [Render]
 web/                       React + Mapbox GL operator console           [Vercel]
+  public/ir/               Airborne demo artifacts (COG, overlay, perimeter)
+raster/                    Airborne IR: thermal frame -> reproject -> COG -> perimeter
+scripts/build_raster_demo.py  Regenerate the airborne artifacts
 ```
 
 ---
@@ -182,15 +185,20 @@ web/                       React + Mapbox GL operator console           [Vercel]
   1 km, Near Real-Time. Free MAP_KEY.
 - **Open-Meteo** current weather — key-less, batched per request.
 
-## Extensions (mapping to the full ORBIT role)
+## Airborne IR raster track (`raster/`)
 
-Built around the same open-geospatial stack the role uses. Natural next steps:
+The imagery-side analog of ORBIT's ingestion — because ORBIT's real input is a
+thermal *raster* from an aircraft scanner, not satellite point detections. This
+track synthesizes a georeferenced thermal frame, **reprojects** it, **thresholds
+hotspots**, extracts a perimeter (**raster → vector**), writes a **Cloud-Optimized
+GeoTIFF**, and emits the *same standardized detection schema* so the airborne
+frame flows through the identical clustering + perimeter pipeline. The React app
+overlays the heat frame + its raster-derived perimeter via the **Airborne IR**
+toggle. See [`raster/README.md`](raster/README.md). This covers the JD's
+"tiling, reprojection, COG generation, serving imagery to map-based UIs" line.
 
-- **Raster / imagery track:** ingest a VIIRS thermal granule, generate a
-  Cloud-Optimized GeoTIFF (COG), and serve it as a tile layer — the imagery /
-  reprojection / COG path that mirrors ORBIT's raw IR input. (Rasterio + xarray
-  are already scaffolded in `requirements.txt`.)
-- **Operator web UI:** the same outputs behind a Mapbox GL / Leaflet front end
-  for a production React app.
-- **Persistence + history:** store events over time to track perimeter growth
-  and rate-of-spread.
+## Further extensions
+
+- **Production tiling:** COG on object storage behind a dynamic tiler (TiTiler) serving XYZ tiles.
+- **Persistence + history:** store events over time to track perimeter growth and rate-of-spread.
+- **Calibrated risk:** blend fuel + terrain layers and validate against an established fire-danger index.
