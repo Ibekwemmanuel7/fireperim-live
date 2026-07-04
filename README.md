@@ -2,7 +2,10 @@
 
 **A satellite-data analog of the ORBIT Data Engine.**
 
-🟢 **Live demo:** https://fireperim-live.streamlit.app
+**Live deployments**
+- 🗺️ React + Mapbox operator console: https://fireperim-live.vercel.app
+- 📊 Streamlit demo: https://fireperim-live.streamlit.app
+- ⚙️ REST API (FastAPI): https://fireperim-api.onrender.com/docs
 
 ORBIT (EmberWorks / Coulson Aviation) ingests thermal imagery from airborne IR
 scanners on firefighting aircraft, extracts fire perimeters, and publishes
@@ -43,6 +46,28 @@ flowchart LR
 Only the **ingestion layer** changes between FirePerim and ORBIT. Clustering,
 perimeter extraction, weather fusion, risk scoring, visualization, and export
 are all source-agnostic.
+
+### Deployment topology
+
+The same Python pipeline core powers three tiers:
+
+```
+                       ┌─────────────────────────┐
+                       │  src/fireperim (pipeline)│
+                       │  ingest→…→risk→export    │
+                       └───────────┬──────────────┘
+              ┌────────────────────┼─────────────────────┐
+   Streamlit app (app.py)   FastAPI (/api)          (reused by both)
+   → Streamlit Cloud        → Render  ── GeoJSON/KMZ ──►  React + Mapbox (/web)
+                                                          → Vercel
+```
+
+- **Backend API** (`/api`, FastAPI on Render): serves events/detections/exports as
+  GeoJSON + KMZ with CORS.
+- **Frontend** (`/web`, React 18 + Mapbox GL JS + Tailwind on Vercel): full-screen
+  operator console — risk-colored perimeters, FRP points, wind arrows, click
+  popups, risk-sorted sidebar, exports, 5-min auto-refresh.
+- **Streamlit app** (`app.py`): the original single-file analytics UI.
 
 ---
 
@@ -138,15 +163,18 @@ src/fireperim/
   viz/maps.py              Folium map: points, perimeters, wind arrows
 data/sample/               Cached VIIRS snapshot (offline demo)
 scripts/fetch_sample.py    Refresh the sample from live FIRMS
-tests/                     23 pytest tests
+tests/                     pipeline + API tests
+api/                       FastAPI service (events/detections/export)  [Render]
+web/                       React + Mapbox GL operator console           [Vercel]
 ```
 
 ---
 
 ## Tech
 
-Python · GeoPandas · Shapely · pyproj · scikit-learn (DBSCAN) · alphashape ·
-Streamlit · Folium/Leaflet · simplekml · GitHub Actions.
+**Pipeline:** Python · GeoPandas · Shapely · pyproj · scikit-learn (DBSCAN) · alphashape · simplekml.
+
+**Backend:** FastAPI · uvicorn (Render).  **Frontends:** React 18 · Mapbox GL JS · Tailwind (Vercel) · Streamlit · Folium/Leaflet.  **CI:** GitHub Actions.
 
 ## Data sources
 
