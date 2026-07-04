@@ -21,6 +21,7 @@ from api import pipeline  # noqa: E402
 from fireperim import __version__  # noqa: E402
 from fireperim.config import REGIONS, SENSORS  # noqa: E402
 from fireperim.export import events_to_geojson, events_to_kmz  # noqa: E402
+from fireperim.weather.open_meteo import debug_fetch  # noqa: E402
 
 app = FastAPI(
     title="FirePerim Live API",
@@ -129,6 +130,12 @@ def export_kmz(
         media_type="application/vnd.google-earth.kmz",
         headers={"Content-Disposition": "attachment; filename=fireperim_events.kmz"},
     )
+
+
+@app.get("/api/debug/weather")
+def debug_weather(lat: float = Query(37.85), lon: float = Query(-119.55)):
+    """Diagnostic: is Open-Meteo reachable from this host?"""
+    return debug_fetch(lat, lon)
 
 
 @app.get("/")
