@@ -9,7 +9,7 @@
 
 ORBIT (EmberWorks / Coulson Aviation) ingests thermal imagery from airborne IR
 scanners on firefighting aircraft, extracts fire perimeters, and publishes
-georeferenced outputs to agency GIS systems (ICS, CAL FIRE, NIFC). **FirePerim
+georeferenced outputs to agency GIS systems (ArcGIS Online / AGOL, WildfireSA, NIFC). **FirePerim
 Live implements the same downstream architecture** — ingest → cluster →
 perimeter → weather → risk → agency export — fed by free satellite thermal
 detections (NASA VIIRS/FIRMS) instead of an airborne scanner.
@@ -197,8 +197,10 @@ overlays the heat frame + its raster-derived perimeter via the **Airborne IR**
 toggle. See [`raster/README.md`](raster/README.md). This covers the JD's
 "tiling, reprojection, COG generation, serving imagery to map-based UIs" line.
 
-## Further extensions
+## Further extensions (toward ORBIT's production stack)
 
+- **Spatial database:** move from in-memory GeoDataFrames to **PostGIS** for persistence, spatial indexing, and multi-user queries.
+- **Cloud-native columnar:** adopt **GeoParquet** for event/detection archives.
 - **Production tiling:** COG on object storage behind a dynamic tiler (TiTiler) serving XYZ tiles.
-- **Persistence + history:** store events over time to track perimeter growth and rate-of-spread.
-- **Calibrated risk:** blend fuel + terrain layers and validate against an established fire-danger index.
+- **Persistence + history:** track perimeter growth and rate-of-spread over time.
+- **Predictive layer:** replace the heuristic risk score with a trained fire-progression model, assimilating toward operational behavior models (FARSITE / FlamMap / WRF-SFIRE).
