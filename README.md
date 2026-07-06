@@ -169,6 +169,8 @@ web/                       React + Mapbox GL operator console           [Vercel]
   public/ir/               Airborne demo artifacts (COG, overlay, perimeter)
 raster/                    Airborne IR: thermal frame -> reproject -> COG -> perimeter
 scripts/build_raster_demo.py  Regenerate the airborne artifacts
+raster/ortho.py            Direct georeferencing / orthorectification demo
+scripts/build_ortho_demo.py   Oblique -> orthorectified (before/after + GeoTIFF)
 ```
 
 ---
@@ -192,7 +194,7 @@ thermal *raster* from an aircraft scanner, not satellite point detections. This
 track synthesizes a georeferenced thermal frame, **reprojects** it, **thresholds
 hotspots**, extracts a perimeter (**raster → vector**), writes a **Cloud-Optimized
 GeoTIFF**, and emits the *same standardized detection schema* so the airborne
-frame flows through the identical clustering + perimeter pipeline. The React app
+frame flows through the identical clustering + perimeter pipeline. It also includes an **orthorectification (direct-georeferencing) demo** (`raster/ortho.py`) that corrects an oblique sensor frame to a north-up, georeferenced grid — the airborne geometry step, with the scanner-direct-georeferencing (not SfM) framing. The React app
 overlays the heat frame + its raster-derived perimeter via the **Airborne IR**
 toggle. See [`raster/README.md`](raster/README.md). This covers the JD's
 "tiling, reprojection, COG generation, serving imagery to map-based UIs" line.

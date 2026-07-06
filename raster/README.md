@@ -36,3 +36,36 @@ serving processed imagery to a map UI — i.e. the "tiling, reprojection, COG
 generation, serving imagery to map-based UIs" line in the job description. In
 production the COG lands on object storage behind a dynamic tiler (e.g. TiTiler)
 serving XYZ tiles; the same processing runs in a cloud worker per scanner frame.
+
+---
+
+## Orthorectification (direct georeferencing) — `ortho.py`
+
+An airborne scanner sees the ground **obliquely**, distorted by the aircraft's
+position and attitude. Orthorectification removes that distortion by projecting
+each pixel to true ground coordinates using the sensor pose (+ terrain). For a
+line/frame sensor this is **direct georeferencing** (project with the GNSS/IMU
+pose) — *not* structure-from-motion / bundle adjustment (OpenDroneMap, Pix4D),
+which is for overlapping frame photography. Knowing which one ORBIT's scanner
+needs is the point.
+
+`ortho.py` is a **self-validating concept demo** of that core operation:
+
+1. Define a camera pose (position + attitude) and an analytic ground scene.
+2. Render the **oblique** sensor image (what the scanner sees).
+3. **Orthorectify** it to a north-up, georeferenced grid via the collinearity
+   equations + indirect resampling.
+4. **Validate:** the orthophoto reconstructs the ground truth — correlation
+   ~0.96 (see `tests/test_ortho.py`).
+
+```bash
+python scripts/build_ortho_demo.py   # -> web/public/ir/ortho/{comparison.png,
+                                      # oblique.png, orthorectified.png, ortho.tif, bounds.json}
+```
+
+`comparison.png` is the before/after: a keystoned oblique grid vs the corrected
+square grid. The terrain is a flat plane here for clarity; swapping it for a DEM
+(`Z = DEM(X, Y)`) makes it full terrain orthorectification with the same maths.
+**Honest framing:** this demonstrates the geometry of the core operation; a
+production pipeline also needs real GNSS/IMU telemetry, sensor/boresight
+calibration, and a DEM (via GDAL `gdalwarp`, geolocation arrays, or RPCs).
