@@ -40,7 +40,7 @@ class PipelineResult:
 
 # ------------------------------------------------------------------ tiny cache
 _CACHE: dict[tuple, tuple[float, PipelineResult]] = {}
-_CACHE_TTL = 300  # 5 minutes
+_CACHE_TTL = 900  # 15 minutes
 _LOCK = threading.Lock()
 
 

@@ -63,6 +63,8 @@ def _loc(t, rh, ws, wd, wg):
 
 
 def test_fetch_weather_per_point_alignment():
+    from fireperim.weather import open_meteo
+    open_meteo._WX_CACHE.clear()
     sess = _SeqSession([_loc(30, 20, 8, 200, 11), _loc(22, 60, 3, 90, 5)])
     out = fetch_weather([(37.0, -120.0), (40.0, -122.0)], session=sess)
     assert len(out) == 2
@@ -71,6 +73,8 @@ def test_fetch_weather_per_point_alignment():
 
 
 def test_fetch_weather_single_point():
+    from fireperim.weather import open_meteo
+    open_meteo._WX_CACHE.clear()
     sess = _SeqSession([_loc(25, 30, 5, 180, 7)])
     out = fetch_weather([(37.0, -120.0)], session=sess)
     assert len(out) == 1 and out[0]["temp_c"] == 25.0

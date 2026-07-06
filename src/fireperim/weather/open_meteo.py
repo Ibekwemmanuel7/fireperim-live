@@ -10,10 +10,17 @@ the app still shows perimeters, just without risk.
 from __future__ import annotations
 
 import logging
+import time
 
 import requests
 
 log = logging.getLogger(__name__)
+
+# Process-level cache of successful lookups, keyed by coarse (lat, lon).
+# Cuts Open-Meteo calls ~10x and lets warmed data survive refreshes (free tier
+# has a shared-IP daily quota, so minimizing calls matters).
+_WX_CACHE: dict = {}
+_WX_TTL = 21600  # 6 h — warmed weather holds across a demo day
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 _CURRENT_VARS = (
@@ -33,10 +40,20 @@ def _params(lat, lon):
 
 
 def fetch_one(lat, lon, session, timeout=10):
-    """Fetch current weather for a single point; returns dict or None."""
+    """Fetch current weather for a single point; returns dict or None.
+
+    Successful results are cached for _WX_TTL seconds by coarse coordinate;
+    failures are not cached (so a later request can retry).
+    """
+    key = (round(lat, 2), round(lon, 2))
+    hit = _WX_CACHE.get(key)
+    if hit and (time.time() - hit[0]) < _WX_TTL:
+        return hit[1]
     r = session.get(OPEN_METEO_URL, params=_params(lat, lon), timeout=timeout)
     r.raise_for_status()
-    return parse_current(r.json())
+    w = parse_current(r.json())
+    _WX_CACHE[key] = (time.time(), w)
+    return w
 
 
 def fetch_weather(points, timeout=10, session=None):
