@@ -1,7 +1,7 @@
 import { REGIONS, BASEMAPS } from '../config'
 
 export default function Header({ region, setRegion, days, setDays, basemap, setBasemap,
-  mode, updated, onRefresh, loading, airborne, setAirborne }) {
+  mode, updated, onRefresh, loading, airborne, setAirborne, ortho, setOrtho }) {
   return (
     <header className="h-14 shrink-0 bg-panel2/95 backdrop-blur border-b border-[#242a35]
       flex items-center gap-3 px-4 z-10">
@@ -23,6 +23,14 @@ export default function Header({ region, setRegion, days, setDays, basemap, setB
           airborne ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
                    : 'bg-[#12151C] border-[#2c3543] text-gray-300 hover:border-[#3a4453]'}`}>
         {airborne ? '● Airborne IR' : '○ Airborne IR'}
+      </button>
+
+      <button onClick={() => setOrtho(!ortho)}
+        title="Overlay an orthorectified (direct-georeferencing) frame — oblique corrected to north-up"
+        className={`text-xs font-semibold px-3 py-1.5 rounded-md border transition ${
+          ortho ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                : 'bg-[#12151C] border-[#2c3543] text-gray-300 hover:border-[#3a4453]'}`}>
+        {ortho ? '● Ortho' : '○ Ortho'}
       </button>
 
       <div className="ml-auto flex items-center gap-3">

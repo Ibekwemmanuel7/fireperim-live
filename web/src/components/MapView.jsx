@@ -34,12 +34,14 @@ function popupHTML(p) {
   </div>`
 }
 
-export default function MapView({ events, detections, basemap, region, selected, airborne }) {
+export default function MapView({ events, detections, basemap, region, selected, airborne, ortho }) {
   const ref = useRef(null)
   const map = useRef(null)
   const popup = useRef(null)
   const airborneRef = useRef(false)
   const airborneData = useRef(null)
+  const orthoRef = useRef(false)
+  const orthoData = useRef(null)
 
   function addLayers() {
     const m = map.current
@@ -107,6 +109,33 @@ export default function MapView({ events, detections, basemap, region, selected,
       if (m.getSource(id)) m.removeSource(id)
   }
 
+  // --- Orthorectified frame overlay (direct-georeferencing demo) ---
+  async function loadOrthoData() {
+    if (orthoData.current) return orthoData.current
+    orthoData.current = await fetch('/ir/ortho/bounds.json').then((r) => r.json())
+    return orthoData.current
+  }
+
+  async function addOrtho(fly = true) {
+    const m = map.current
+    if (!m) return
+    const { west, south, east, north } = await loadOrthoData()
+    if (!m.getSource('ortho-raster')) {
+      m.addSource('ortho-raster', { type: 'image', url: '/ir/ortho/orthorectified.png',
+        coordinates: [[west, north], [east, north], [east, south], [west, south]] })
+      m.addLayer({ id: 'ortho-raster', type: 'raster', source: 'ortho-raster',
+        paint: { 'raster-opacity': 0.92, 'raster-fade-duration': 0 } })
+    }
+    if (fly) m.fitBounds([[west, south], [east, north]], { padding: 140, duration: 1200 })
+  }
+
+  function removeOrtho() {
+    const m = map.current
+    if (!m) return
+    if (m.getLayer('ortho-raster')) m.removeLayer('ortho-raster')
+    if (m.getSource('ortho-raster')) m.removeSource('ortho-raster')
+  }
+
   useEffect(() => {
     if (map.current || !MAPBOX_TOKEN) return
     const v = REGION_VIEW[region] || REGION_VIEW.california
@@ -120,7 +149,7 @@ export default function MapView({ events, detections, basemap, region, selected,
     const m = map.current
     if (!m) return
     m.setStyle(BASEMAPS[basemap] || BASEMAPS.Dark)
-    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false) })
+    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false) })
   }, [basemap])
 
   useEffect(() => {
@@ -138,7 +167,7 @@ export default function MapView({ events, detections, basemap, region, selected,
 
   useEffect(() => {
     const m = map.current, v = REGION_VIEW[region]
-    if (m && v && !airborneRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
+    if (m && v && !airborneRef.current && !orthoRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
   }, [region])
 
   useEffect(() => {
@@ -159,6 +188,15 @@ export default function MapView({ events, detections, basemap, region, selected,
     const run = () => (airborne ? addAirborne(true) : removeAirborne())
     if (m.isStyleLoaded()) run(); else m.once('idle', run)
   }, [airborne])
+
+  // toggle orthorectified overlay
+  useEffect(() => {
+    orthoRef.current = ortho
+    const m = map.current
+    if (!m) return
+    const run = () => (ortho ? addOrtho(true) : removeOrtho())
+    if (m.isStyleLoaded()) run(); else m.once('idle', run)
+  }, [ortho])
 
   if (!MAPBOX_TOKEN) {
     return <div className="h-full w-full flex items-center justify-center text-center text-gray-300 p-8">
