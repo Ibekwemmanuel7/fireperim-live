@@ -3,6 +3,7 @@ import MapView from './components/MapView'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import { fetchEvents, fetchDetections } from './api'
+import { enrichEventsWithWeather } from './weather'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -24,7 +25,9 @@ export default function App() {
     setLoading(true); setError(null)
     try {
       const [ev, det] = await Promise.all([fetchEvents(region, days), fetchDetections(region, days)])
-      setEvents(ev); setDetections(det); setUpdated(new Date())
+      setDetections(det)
+      const evWithWeather = await enrichEventsWithWeather(ev)
+      setEvents(evWithWeather); setUpdated(new Date())
     } catch (e) { setError(e.message || String(e)) }
     finally { setLoading(false) }
   }, [region, days])
