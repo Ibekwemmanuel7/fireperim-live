@@ -24,6 +24,7 @@ from pyproj import Transformer
 from rasterio.crs import CRS
 
 GEO = CRS.from_epsg(4326)
+ACTIVE_FIRE_K = 360.0   # brightness-temperature threshold for active fire
 
 
 # ----------------------------------------------------------------- camera model
@@ -89,11 +90,19 @@ def scene_value(X, Y, cx, cy):
     return np.clip(blob + grid, 0, 1)
 
 
-def render_oblique(cam, gc, z0=0.0):
+def thermal_scene_value(X, Y, cx, cy):
+    """Ground-truth thermal scene in Kelvin: cool background + a hot fire core."""
+    r2 = ((X - cx) / 120.0) ** 2 + ((Y - cy) / 75.0) ** 2
+    blob = np.exp(-r2)                    # 0..1
+    return (300.0 + blob * 330.0).astype("float32")   # ~300 K bg -> ~630 K core
+
+
+def render_oblique(cam, gc, z0=0.0, scene_fn=None):
     """The oblique sensor image: sample the analytic scene through the camera."""
+    scene_fn = scene_fn or scene_value
     py, px = np.mgrid[0:cam["H"], 0:cam["W"]].astype(float)
     X, Y = raycast_to_plane(cam, px, py, z0)
-    return scene_value(X, Y, gc[0], gc[1]).astype("float32")
+    return scene_fn(X, Y, gc[0], gc[1]).astype("float32")
 
 
 def orthorectify(cam, oblique, gc, extent=520.0, res=2.0, z0=0.0):
@@ -140,3 +149,27 @@ def georeference(origin_xy, res, shape, center_lat=37.85, center_lon=-119.55,
         [e0 + x0, e0 + x0 + w * res], [n0 + y0, n0 + y0 - h * res])
     bounds = {"west": min(lons), "east": max(lons), "south": min(lats), "north": max(lats)}
     return transform, CRS.from_epsg(epsg), bounds
+
+
+# ------------------------------------------------- full airborne ingestion chain
+def ortho_thermal_to_detections(cam=None, threshold_k=ACTIVE_FIRE_K, step=3):
+    """End-to-end airborne ingestion: oblique THERMAL frame -> orthorectify ->
+    standardized detections that flow into the same satellite pipeline.
+
+    Returns (detections GeoDataFrame in EPSG:4326, ortho array (K), transform,
+    crs, bounds).
+    """
+    from raster import airborne
+
+    if cam is None:
+        cam = make_camera()
+    gc = ground_center(cam)
+    oblique = render_oblique(cam, gc, scene_fn=thermal_scene_value)
+    ortho, _truth, _valid, origin, res = orthorectify(cam, oblique, gc)
+    transform, crs, bounds = georeference(origin, res, ortho.shape)
+    detections = airborne.frame_to_detections(
+        ortho, transform, crs, threshold_k=threshold_k, step=step)
+    # relabel provenance so it reads as the airborne-ortho source
+    if len(detections):
+        detections["sensor"] = "AIRBORNE_IR_ORTHO (sim)"
+    return detections, ortho, transform, crs, bounds

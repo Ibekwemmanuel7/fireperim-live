@@ -51,3 +51,19 @@ def test_georeference_bounds_in_california():
     _, crs, bounds = O.georeference(origin, res, ortho.shape)
     assert crs.to_epsg() == 32611
     assert -120.5 < bounds["west"] < -118.5 and 37.0 < bounds["south"] < 38.5
+
+
+def test_full_airborne_chain_oblique_frame_to_fire_event():
+    """Oblique THERMAL frame -> orthorectify -> standardized detections that flow
+    through the SAME satellite pipeline into a fire event."""
+    from fireperim.ingest.base import DETECTION_COLUMNS
+    from fireperim.processing import build_events, cluster_detections
+
+    dets, ortho, transform, crs, bounds = O.ortho_thermal_to_detections()
+    assert list(dets.columns) == list(DETECTION_COLUMNS) + ["geometry"]
+    assert (dets["sensor"] == "AIRBORNE_IR_ORTHO (sim)").all()
+    assert (dets["brightness_k"] >= 360).all()          # only hot pixels
+    events = build_events(cluster_detections(dets, eps_m=40, min_samples=4),
+                          alpha_per_m=0.05)
+    assert len(events) >= 1                              # a real fire event emerges
+    assert (events.geometry.geom_type.isin(["Polygon", "MultiPolygon"])).all()

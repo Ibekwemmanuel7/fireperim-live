@@ -75,6 +75,17 @@ def main() -> int:
                        transform=transform, compress="deflate") as dst:
         dst.write(ortho, 1)
     (OUT / "bounds.json").write_text(json.dumps(bounds, indent=2))
+
+    # --- full airborne chain: oblique thermal frame -> ortho -> detections
+    #     -> cluster -> perimeter (the same downstream pipeline) ---
+    from fireperim.processing import build_events, cluster_detections
+    dets, _ortho_k, _tf, _crs, _b = O.ortho_thermal_to_detections()
+    events = build_events(
+        cluster_detections(dets, eps_m=40, min_samples=4), alpha_per_m=0.05)
+    from fireperim.export import events_to_geojson
+    (OUT / "chain_perimeter.geojson").write_text(events_to_geojson(events))
+    print(f"full airborne chain: oblique thermal frame -> {len(dets)} detections "
+          f"-> {len(events)} fire event(s) -> perimeter.geojson")
     print(f"wrote artifacts to {OUT} | bounds {bounds}")
     return 0
 

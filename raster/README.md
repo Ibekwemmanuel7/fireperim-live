@@ -69,3 +69,17 @@ square grid. The terrain is a flat plane here for clarity; swapping it for a DEM
 **Honest framing:** this demonstrates the geometry of the core operation; a
 production pipeline also needs real GNSS/IMU telemetry, sensor/boresight
 calibration, and a DEM (via GDAL `gdalwarp`, geolocation arrays, or RPCs).
+
+### Full airborne ingestion chain (integrated)
+
+`ortho.ortho_thermal_to_detections()` connects the pieces end to end: it takes an
+**oblique thermal frame**, orthorectifies it, thresholds the hot pixels of the
+*corrected* frame, and emits the **same standardized detection schema** — which
+flows straight into `cluster_detections` → `build_events` → risk → export. So the
+airborne path is unbroken:
+
+**raw oblique thermal frame → orthorectify → detect → cluster → perimeter → risk → agency export**
+
+Every stage after orthorectification is the identical code the satellite pipeline
+runs (`tests/test_ortho.py::test_full_airborne_chain_oblique_frame_to_fire_event`
+proves an oblique frame resolves to a real fire event).
