@@ -1,0 +1,27 @@
+{
+  "single_pass": {
+    "psnr_db": 18.8641259947426,
+    "ssim": 0.5740427878749007,
+    "bg_noise_std_k": 14.136019575635673,
+    "edge_sharpness": 7.909966798158218
+  },
+  "naive_average": {
+    "psnr_db": 20.92383437735502,
+    "ssim": 0.8657419503222329,
+    "bg_noise_std_k": 23.782529415497372,
+    "edge_sharpness": 9.045197416019482
+  },
+  "full_fusion": {
+    "psnr_db": 28.819397663792778,
+    "ssim": 0.8125600864565252,
+    "bg_noise_std_k": 7.38251176759283,
+    "edge_sharpness": 13.759551898748137
+  },
+  "improvements": {
+    "psnr_gain_db": 9.96,
+    "ssim_gain": 0.239,
+    "noise_reduction_pct": 47.8,
+    "gap_fill_pct": 16.0,
+    "edge_sharpness_ratio": 1.74
+  }
+}

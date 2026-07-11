@@ -34,7 +34,7 @@ function popupHTML(p) {
   </div>`
 }
 
-export default function MapView({ events, detections, basemap, region, selected, airborne, ortho }) {
+export default function MapView({ events, detections, basemap, region, selected, airborne, ortho, multipass }) {
   const ref = useRef(null)
   const map = useRef(null)
   const popup = useRef(null)
@@ -42,6 +42,8 @@ export default function MapView({ events, detections, basemap, region, selected,
   const airborneData = useRef(null)
   const orthoRef = useRef(false)
   const orthoData = useRef(null)
+  const multipassRef = useRef(false)
+  const multipassData = useRef(null)
 
   function addLayers() {
     const m = map.current
@@ -136,6 +138,33 @@ export default function MapView({ events, detections, basemap, region, selected,
     if (m.getSource('ortho-raster')) m.removeSource('ortho-raster')
   }
 
+  // --- Multi-pass fusion overlay (many noisy passes -> one clean image) ---
+  async function loadMultipassData() {
+    if (multipassData.current) return multipassData.current
+    multipassData.current = await fetch('/ir/multipass/bounds.json').then((r) => r.json())
+    return multipassData.current
+  }
+
+  async function addMultipass(fly = true) {
+    const m = map.current
+    if (!m) return
+    const { west, south, east, north } = await loadMultipassData()
+    if (!m.getSource('multipass-raster')) {
+      m.addSource('multipass-raster', { type: 'image', url: '/ir/multipass/overlay.png',
+        coordinates: [[west, north], [east, north], [east, south], [west, south]] })
+      m.addLayer({ id: 'multipass-raster', type: 'raster', source: 'multipass-raster',
+        paint: { 'raster-opacity': 0.92, 'raster-fade-duration': 0 } })
+    }
+    if (fly) m.fitBounds([[west, south], [east, north]], { padding: 140, duration: 1200 })
+  }
+
+  function removeMultipass() {
+    const m = map.current
+    if (!m) return
+    if (m.getLayer('multipass-raster')) m.removeLayer('multipass-raster')
+    if (m.getSource('multipass-raster')) m.removeSource('multipass-raster')
+  }
+
   useEffect(() => {
     if (map.current || !MAPBOX_TOKEN) return
     const v = REGION_VIEW[region] || REGION_VIEW.california
@@ -149,7 +178,7 @@ export default function MapView({ events, detections, basemap, region, selected,
     const m = map.current
     if (!m) return
     m.setStyle(BASEMAPS[basemap] || BASEMAPS.Dark)
-    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false) })
+    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false); if (multipassRef.current) addMultipass(false) })
   }, [basemap])
 
   useEffect(() => {
@@ -167,7 +196,7 @@ export default function MapView({ events, detections, basemap, region, selected,
 
   useEffect(() => {
     const m = map.current, v = REGION_VIEW[region]
-    if (m && v && !airborneRef.current && !orthoRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
+    if (m && v && !airborneRef.current && !orthoRef.current && !multipassRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
   }, [region])
 
   useEffect(() => {
@@ -197,6 +226,15 @@ export default function MapView({ events, detections, basemap, region, selected,
     const run = () => (ortho ? addOrtho(true) : removeOrtho())
     if (m.isStyleLoaded()) run(); else m.once('idle', run)
   }, [ortho])
+
+  // toggle multi-pass fusion overlay
+  useEffect(() => {
+    multipassRef.current = multipass
+    const m = map.current
+    if (!m) return
+    const run = () => (multipass ? addMultipass(true) : removeMultipass())
+    if (m.isStyleLoaded()) run(); else m.once('idle', run)
+  }, [multipass])
 
   if (!MAPBOX_TOKEN) {
     return <div className="h-full w-full flex items-center justify-center text-center text-gray-300 p-8">

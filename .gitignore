@@ -27,4 +27,8 @@ data/cache/
 *.swp
 
 # transient doc-render previews
-.preview/
+.preview*/
+fused_cog.tif
+*.ovr.tmp
+~$*
+web/public/ir/multipass/*.tif
