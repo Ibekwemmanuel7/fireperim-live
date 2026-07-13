@@ -14,6 +14,7 @@ export default function App() {
   const [airborne, setAirborne] = useState(false)
   const [ortho, setOrtho] = useState(false)
   const [multipass, setMultipass] = useState(false)
+  const [realfusion, setRealfusion] = useState(false)
   const [events, setEvents] = useState(null)
   const [detections, setDetections] = useState(null)
   const [selected, setSelected] = useState(null)
@@ -48,7 +49,8 @@ export default function App() {
       <Header region={region} setRegion={setRegion} days={days} setDays={setDays}
         basemap={basemap} setBasemap={setBasemap} mode={mode} updated={updated}
         onRefresh={load} loading={loading} airborne={airborne} setAirborne={setAirborne}
-        ortho={ortho} setOrtho={setOrtho} multipass={multipass} setMultipass={setMultipass} />
+        ortho={ortho} setOrtho={setOrtho} multipass={multipass} setMultipass={setMultipass}
+        realfusion={realfusion} setRealfusion={setRealfusion} />
       <div className="flex-1 flex overflow-hidden flex-col-reverse sm:flex-row">
         <Sidebar events={events} region={region} days={days} loading={loading} error={error}
           selectedId={selected?.properties?.event_id}
@@ -56,7 +58,7 @@ export default function App() {
         <main className="flex-1 relative min-h-[50vh]">
           <MapView events={events} detections={detections} basemap={basemap}
             region={region} selected={selected} airborne={airborne} ortho={ortho}
-            multipass={multipass} />
+            multipass={multipass} realfusion={realfusion} />
         </main>
       </div>
     </div>

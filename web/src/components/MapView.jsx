@@ -34,7 +34,7 @@ function popupHTML(p) {
   </div>`
 }
 
-export default function MapView({ events, detections, basemap, region, selected, airborne, ortho, multipass }) {
+export default function MapView({ events, detections, basemap, region, selected, airborne, ortho, multipass, realfusion }) {
   const ref = useRef(null)
   const map = useRef(null)
   const popup = useRef(null)
@@ -44,6 +44,8 @@ export default function MapView({ events, detections, basemap, region, selected,
   const orthoData = useRef(null)
   const multipassRef = useRef(false)
   const multipassData = useRef(null)
+  const realfusionRef = useRef(false)
+  const realfusionData = useRef(null)
 
   function addLayers() {
     const m = map.current
@@ -165,6 +167,33 @@ export default function MapView({ events, detections, basemap, region, selected,
     if (m.getSource('multipass-raster')) m.removeSource('multipass-raster')
   }
 
+  // --- REAL FLAME 3 fusion overlay (real airborne thermal, co-registered looks fused) ---
+  async function loadRealfusionData() {
+    if (realfusionData.current) return realfusionData.current
+    realfusionData.current = await fetch('/ir/realfusion/bounds.json').then((r) => r.json())
+    return realfusionData.current
+  }
+
+  async function addRealfusion(fly = true) {
+    const m = map.current
+    if (!m) return
+    const { west, south, east, north } = await loadRealfusionData()
+    if (!m.getSource('realfusion-raster')) {
+      m.addSource('realfusion-raster', { type: 'image', url: '/ir/realfusion/overlay.png',
+        coordinates: [[west, north], [east, north], [east, south], [west, south]] })
+      m.addLayer({ id: 'realfusion-raster', type: 'raster', source: 'realfusion-raster',
+        paint: { 'raster-opacity': 0.95, 'raster-fade-duration': 0 } })
+    }
+    if (fly) m.fitBounds([[west, south], [east, north]], { padding: 140, duration: 1200 })
+  }
+
+  function removeRealfusion() {
+    const m = map.current
+    if (!m) return
+    if (m.getLayer('realfusion-raster')) m.removeLayer('realfusion-raster')
+    if (m.getSource('realfusion-raster')) m.removeSource('realfusion-raster')
+  }
+
   useEffect(() => {
     if (map.current || !MAPBOX_TOKEN) return
     const v = REGION_VIEW[region] || REGION_VIEW.california
@@ -178,7 +207,7 @@ export default function MapView({ events, detections, basemap, region, selected,
     const m = map.current
     if (!m) return
     m.setStyle(BASEMAPS[basemap] || BASEMAPS.Dark)
-    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false); if (multipassRef.current) addMultipass(false) })
+    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false); if (multipassRef.current) addMultipass(false); if (realfusionRef.current) addRealfusion(false) })
   }, [basemap])
 
   useEffect(() => {
@@ -196,7 +225,7 @@ export default function MapView({ events, detections, basemap, region, selected,
 
   useEffect(() => {
     const m = map.current, v = REGION_VIEW[region]
-    if (m && v && !airborneRef.current && !orthoRef.current && !multipassRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
+    if (m && v && !airborneRef.current && !orthoRef.current && !multipassRef.current && !realfusionRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
   }, [region])
 
   useEffect(() => {
@@ -235,6 +264,15 @@ export default function MapView({ events, detections, basemap, region, selected,
     const run = () => (multipass ? addMultipass(true) : removeMultipass())
     if (m.isStyleLoaded()) run(); else m.once('idle', run)
   }, [multipass])
+
+  // toggle REAL FLAME 3 fusion overlay
+  useEffect(() => {
+    realfusionRef.current = realfusion
+    const m = map.current
+    if (!m) return
+    const run = () => (realfusion ? addRealfusion(true) : removeRealfusion())
+    if (m.isStyleLoaded()) run(); else m.once('idle', run)
+  }, [realfusion])
 
   if (!MAPBOX_TOKEN) {
     return <div className="h-full w-full flex items-center justify-center text-center text-gray-300 p-8">
