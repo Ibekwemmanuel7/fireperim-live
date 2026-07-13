@@ -1,0 +1,29 @@
+{
+  "frames": [
+    7,
+    18,
+    22,
+    23,
+    26,
+    47,
+    49,
+    54
+  ],
+  "target": [
+    42.86654,
+    -121.13625
+  ],
+  "camera": "DJI M30T wide, focal 4.4mm, sensor 6.4x4.8mm",
+  "n_passes": 8,
+  "camera_baseline_m": 413,
+  "slant_range_m": "146-224",
+  "AGL_m": "39-59",
+  "telemetry_only_ground_residual_m": {
+    "median": 9.6,
+    "min": 2.0,
+    "max": 23.5
+  },
+  "method": "GPS position + laser-rangefinder boresight + gimbal-stabilized roll -> pinhole projection to LRF-altitude ground plane",
+  "limitation": "wide-baseline grazing oblique over 3D relief -> flat-plane ortho leaves height parallax; DEM/SfM needed for pixel-level multi-view fusion",
+  "orbit_relevance": "ORBIT's high-altitude near-nadir line scanner has far less parallax, so this same telemetry-ortho front-end aligns cleanly at operational geometry"
+}
