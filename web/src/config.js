@@ -21,5 +21,5 @@ export const REGION_VIEW = {
   california: { center: [-119.5, 37.3], zoom: 5.2 },
   us_west: { center: [-116.5, 42.0], zoom: 4.4 },
   conus: { center: [-98.0, 39.5], zoom: 3.4 },
-  sycan: { center: [-121.154, 42.8525], zoom: 13.4 },
+  sycan: { center: [-121.1579, 42.8553], zoom: 14.1 },
 }
