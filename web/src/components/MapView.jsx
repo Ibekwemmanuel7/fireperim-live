@@ -34,7 +34,7 @@ function popupHTML(p) {
   </div>`
 }
 
-export default function MapView({ events, detections, basemap, region, selected, airborne, ortho, multipass, realfusion, desmoke }) {
+export default function MapView({ events, detections, basemap, region, selected, airborne, ortho, multipass, realfusion, desmoke, georef }) {
   const ref = useRef(null)
   const map = useRef(null)
   const popup = useRef(null)
@@ -49,6 +49,8 @@ export default function MapView({ events, detections, basemap, region, selected,
   const desmokeRef = useRef(false)
   const desmokeData = useRef(null)
   const desmokeCtrl = useRef(null)
+  const georefRef = useRef(false)
+  const georefData = useRef(null)
 
   function addLayers() {
     const m = map.current
@@ -256,6 +258,60 @@ export default function MapView({ events, detections, basemap, region, selected,
     }
   }
 
+  // --- Georef passes: 8 telemetry-projected footprints + cameras + target + ortho ---
+  async function loadGeorefData() {
+    if (georefData.current) return georefData.current
+    const [fc, ob] = await Promise.all([
+      fetch('/ir/georef/footprints.geojson').then((r) => r.json()),
+      fetch('/ir/georef/ortho_bounds.json').then((r) => r.json()),
+    ])
+    georefData.current = { fc, ob, bounds: await fetch('/ir/georef/bounds.json').then((r) => r.json()) }
+    return georefData.current
+  }
+
+  async function addGeoref(fly = true) {
+    const m = map.current
+    if (!m) return
+    const { fc, ob, bounds } = await loadGeorefData()
+    if (!m.getSource('georef-ortho')) {
+      m.addSource('georef-ortho', { type: 'image', url: '/ir/georef/ortho7.png',
+        coordinates: [[ob.west, ob.north], [ob.east, ob.north], [ob.east, ob.south], [ob.west, ob.south]] })
+      m.addLayer({ id: 'georef-ortho', type: 'raster', source: 'georef-ortho',
+        paint: { 'raster-opacity': 0.9, 'raster-fade-duration': 0 } })
+    }
+    if (!m.getSource('georef')) {
+      m.addSource('georef', { type: 'geojson', data: fc })
+      m.addLayer({ id: 'georef-fill', type: 'fill', source: 'georef',
+        filter: ['==', ['get', 'kind'], 'footprint'],
+        paint: { 'fill-color': '#38bdf8', 'fill-opacity': 0.12 } })
+      m.addLayer({ id: 'georef-line', type: 'line', source: 'georef',
+        filter: ['==', ['get', 'kind'], 'footprint'],
+        paint: { 'line-color': '#38bdf8', 'line-width': 1.5, 'line-opacity': 0.8 } })
+      m.addLayer({ id: 'georef-cam', type: 'circle', source: 'georef',
+        filter: ['==', ['get', 'kind'], 'camera'],
+        paint: { 'circle-radius': 5, 'circle-color': '#38bdf8', 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } })
+      m.addLayer({ id: 'georef-target', type: 'circle', source: 'georef',
+        filter: ['==', ['get', 'kind'], 'target'],
+        paint: { 'circle-radius': 8, 'circle-color': '#ef4444', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } })
+      m.on('click', 'georef-fill', (e) => {
+        const p = e.features[0].properties
+        if (popup.current) popup.current.remove()
+        popup.current = new mapboxgl.Popup({ closeButton: true }).setLngLat(e.lngLat)
+          .setHTML(`<div style="font-size:12px"><b>Pass ${p.frame}</b><br>slant ${p.slant_m} m · AGL ${p.agl_m} m</div>`).addTo(m)
+      })
+    }
+    if (fly) m.fitBounds([[bounds.west, bounds.south], [bounds.east, bounds.north]], { padding: 60, duration: 1200 })
+  }
+
+  function removeGeoref() {
+    const m = map.current
+    if (!m) return
+    for (const id of ['georef-target', 'georef-cam', 'georef-line', 'georef-fill', 'georef-ortho']) {
+      if (m.getLayer(id)) m.removeLayer(id)
+    }
+    for (const id of ['georef', 'georef-ortho']) if (m.getSource(id)) m.removeSource(id)
+  }
+
   useEffect(() => {
     if (map.current || !MAPBOX_TOKEN) return
     const v = REGION_VIEW[region] || REGION_VIEW.california
@@ -269,7 +325,7 @@ export default function MapView({ events, detections, basemap, region, selected,
     const m = map.current
     if (!m) return
     m.setStyle(BASEMAPS[basemap] || BASEMAPS.Dark)
-    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false); if (multipassRef.current) addMultipass(false); if (realfusionRef.current) addRealfusion(false); if (desmokeRef.current) addDesmoke(false) })
+    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false); if (multipassRef.current) addMultipass(false); if (realfusionRef.current) addRealfusion(false); if (desmokeRef.current) addDesmoke(false); if (georefRef.current) addGeoref(false) })
   }, [basemap])
 
   useEffect(() => {
@@ -287,7 +343,7 @@ export default function MapView({ events, detections, basemap, region, selected,
 
   useEffect(() => {
     const m = map.current, v = REGION_VIEW[region]
-    if (m && v && !airborneRef.current && !orthoRef.current && !multipassRef.current && !realfusionRef.current && !desmokeRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
+    if (m && v && !airborneRef.current && !orthoRef.current && !multipassRef.current && !realfusionRef.current && !desmokeRef.current && !georefRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
   }, [region])
 
   useEffect(() => {
@@ -344,6 +400,15 @@ export default function MapView({ events, detections, basemap, region, selected,
     const run = () => (desmoke ? addDesmoke(true) : removeDesmoke())
     if (m.isStyleLoaded()) run(); else m.once('idle', run)
   }, [desmoke])
+
+  // toggle Georef passes overlay
+  useEffect(() => {
+    georefRef.current = georef
+    const m = map.current
+    if (!m) return
+    const run = () => (georef ? addGeoref(true) : removeGeoref())
+    if (m.isStyleLoaded()) run(); else m.once('idle', run)
+  }, [georef])
 
   if (!MAPBOX_TOKEN) {
     return <div className="h-full w-full flex items-center justify-center text-center text-gray-300 p-8">

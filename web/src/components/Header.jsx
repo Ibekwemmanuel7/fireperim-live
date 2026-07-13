@@ -2,7 +2,7 @@ import { REGIONS, BASEMAPS } from '../config'
 
 export default function Header({ region, setRegion, days, setDays, basemap, setBasemap,
   mode, updated, onRefresh, loading, airborne, setAirborne, ortho, setOrtho,
-  multipass, setMultipass, realfusion, setRealfusion, desmoke, setDesmoke }) {
+  multipass, setMultipass, realfusion, setRealfusion, desmoke, setDesmoke, georef, setGeoref }) {
   return (
     <header className="h-14 shrink-0 bg-panel2/95 backdrop-blur border-b border-[#242a35]
       flex items-center gap-3 px-4 z-10">
@@ -56,6 +56,14 @@ export default function Header({ region, setRegion, days, setDays, basemap, setB
           desmoke ? 'bg-violet-500/20 border-violet-400 text-violet-200'
                   : 'bg-[#12151C] border-[#2c3543] text-gray-300 hover:border-[#3a4453]'}`}>
         {desmoke ? '● Desmoke' : '○ Desmoke'}
+      </button>
+
+      <button onClick={() => setGeoref(!georef)}
+        title="Direct georeferencing from real DJI telemetry (GPS + laser-rangefinder). 8 oblique passes co-locate on the burn to ~10m from pose alone — no GCPs, no image matching"
+        className={`text-xs font-semibold px-3 py-1.5 rounded-md border transition ${
+          georef ? 'bg-sky-500/20 border-sky-400 text-sky-200'
+                 : 'bg-[#12151C] border-[#2c3543] text-gray-300 hover:border-[#3a4453]'}`}>
+        {georef ? '● Georef passes' : '○ Georef passes'}
       </button>
 
       <div className="ml-auto flex items-center gap-3">
