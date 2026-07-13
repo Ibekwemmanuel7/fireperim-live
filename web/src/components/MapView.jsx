@@ -343,7 +343,7 @@ export default function MapView({ events, detections, basemap, region, selected,
 
   useEffect(() => {
     const m = map.current, v = REGION_VIEW[region]
-    if (m && v && !airborneRef.current && !orthoRef.current && !multipassRef.current && !realfusionRef.current && !desmokeRef.current && !georefRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
+    if (m && v) m.flyTo({ center: v.center, zoom: v.zoom })   // always honor an explicit region pick
   }, [region])
 
   useEffect(() => {
