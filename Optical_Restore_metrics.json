@@ -1,0 +1,51 @@
+{
+  "frame": "00271.JPG",
+  "source": "FLAME 3 CVSubset (Sycan Marsh) \u2014 real airborne RGB fire imagery",
+  "working_res": "1200x900",
+  "method_standard": "WB\u2192CLAHE\u2192bilateral\u2192unsharp",
+  "method_sota": "WB\u2192DCP dehaze(guided-filter)\u2192CLAHE\u2192bilateral\u2192unsharp",
+  "standard": {
+    "before": {
+      "contrast": 39.69,
+      "sharpness": 36.2,
+      "entropy": 7.229,
+      "colourfulness": 9.36,
+      "haze_density": 0.592,
+      "visible_edges": 112996
+    },
+    "after": {
+      "contrast": 38.12,
+      "sharpness": 42.5,
+      "entropy": 7.222,
+      "colourfulness": 7.89,
+      "haze_density": 0.5507,
+      "visible_edges": 385534
+    },
+    "contrast_gain_pct": -4.0,
+    "sharpness_gain_x": 1.17,
+    "haze_reduction_pct": 7.0,
+    "newly_visible_edge_ratio": 3.41
+  },
+  "sota": {
+    "before": {
+      "contrast": 39.69,
+      "sharpness": 36.2,
+      "entropy": 7.229,
+      "colourfulness": 9.36,
+      "haze_density": 0.592,
+      "visible_edges": 112996
+    },
+    "after": {
+      "contrast": 41.06,
+      "sharpness": 619.6,
+      "entropy": 7.193,
+      "colourfulness": 24.9,
+      "haze_density": 0.2129,
+      "visible_edges": 905452
+    },
+    "contrast_gain_pct": 3.5,
+    "sharpness_gain_x": 17.12,
+    "haze_reduction_pct": 64.0,
+    "newly_visible_edge_ratio": 8.01
+  }
+}

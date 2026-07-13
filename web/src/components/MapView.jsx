@@ -34,7 +34,7 @@ function popupHTML(p) {
   </div>`
 }
 
-export default function MapView({ events, detections, basemap, region, selected, airborne, ortho, multipass, realfusion }) {
+export default function MapView({ events, detections, basemap, region, selected, airborne, ortho, multipass, realfusion, desmoke }) {
   const ref = useRef(null)
   const map = useRef(null)
   const popup = useRef(null)
@@ -46,6 +46,9 @@ export default function MapView({ events, detections, basemap, region, selected,
   const multipassData = useRef(null)
   const realfusionRef = useRef(false)
   const realfusionData = useRef(null)
+  const desmokeRef = useRef(false)
+  const desmokeData = useRef(null)
+  const desmokeCtrl = useRef(null)
 
   function addLayers() {
     const m = map.current
@@ -194,6 +197,65 @@ export default function MapView({ events, detections, basemap, region, selected,
     if (m.getSource('realfusion-raster')) m.removeSource('realfusion-raster')
   }
 
+  // --- Desmoke: real smoke frame + dehazed frame stacked, with a wipe slider ---
+  async function loadDesmokeData() {
+    if (desmokeData.current) return desmokeData.current
+    desmokeData.current = await fetch('/ir/desmoke/bounds.json').then((r) => r.json())
+    return desmokeData.current
+  }
+
+  function makeWipeControl() {
+    return {
+      onAdd(m) {
+        this._m = m
+        const c = document.createElement('div')
+        c.className = 'mapboxgl-ctrl mapboxgl-ctrl-group'
+        Object.assign(c.style, { padding: '6px 9px', background: 'rgba(18,21,28,0.92)',
+          display: 'flex', alignItems: 'center', gap: '7px', borderRadius: '6px' })
+        const lbl = document.createElement('span')
+        lbl.textContent = 'Smoke ⟷ Clear'
+        Object.assign(lbl.style, { color: '#c7b8ff', font: '600 11px system-ui', whiteSpace: 'nowrap' })
+        const s = document.createElement('input')
+        s.type = 'range'; s.min = '0'; s.max = '100'; s.value = '100'; s.style.width = '130px'
+        s.oninput = () => { if (m.getLayer('desmoke-top'))
+          m.setPaintProperty('desmoke-top', 'raster-opacity', Number(s.value) / 100) }
+        c.appendChild(lbl); c.appendChild(s)
+        this._c = c
+        return c
+      },
+      onRemove() { if (this._c && this._c.parentNode) this._c.parentNode.removeChild(this._c); this._m = undefined },
+    }
+  }
+
+  async function addDesmoke(fly = true) {
+    const m = map.current
+    if (!m) return
+    const { west, south, east, north } = await loadDesmokeData()
+    const coords = [[west, north], [east, north], [east, south], [west, south]]
+    if (!m.getSource('desmoke-bottom')) {
+      m.addSource('desmoke-bottom', { type: 'image', url: '/ir/desmoke/smoke.png', coordinates: coords })
+      m.addLayer({ id: 'desmoke-bottom', type: 'raster', source: 'desmoke-bottom',
+        paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 } })
+    }
+    if (!m.getSource('desmoke-top')) {
+      m.addSource('desmoke-top', { type: 'image', url: '/ir/desmoke/restored.png', coordinates: coords })
+      m.addLayer({ id: 'desmoke-top', type: 'raster', source: 'desmoke-top',
+        paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 } })
+    }
+    if (!desmokeCtrl.current) { desmokeCtrl.current = makeWipeControl(); m.addControl(desmokeCtrl.current, 'top-left') }
+    if (fly) m.fitBounds([[west, south], [east, north]], { padding: 140, duration: 1200 })
+  }
+
+  function removeDesmoke() {
+    const m = map.current
+    if (!m) return
+    if (desmokeCtrl.current) { m.removeControl(desmokeCtrl.current); desmokeCtrl.current = null }
+    for (const id of ['desmoke-top', 'desmoke-bottom']) {
+      if (m.getLayer(id)) m.removeLayer(id)
+      if (m.getSource(id)) m.removeSource(id)
+    }
+  }
+
   useEffect(() => {
     if (map.current || !MAPBOX_TOKEN) return
     const v = REGION_VIEW[region] || REGION_VIEW.california
@@ -207,7 +269,7 @@ export default function MapView({ events, detections, basemap, region, selected,
     const m = map.current
     if (!m) return
     m.setStyle(BASEMAPS[basemap] || BASEMAPS.Dark)
-    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false); if (multipassRef.current) addMultipass(false); if (realfusionRef.current) addRealfusion(false) })
+    m.once('style.load', () => { addLayers(); if (airborneRef.current) addAirborne(false); if (orthoRef.current) addOrtho(false); if (multipassRef.current) addMultipass(false); if (realfusionRef.current) addRealfusion(false); if (desmokeRef.current) addDesmoke(false) })
   }, [basemap])
 
   useEffect(() => {
@@ -225,7 +287,7 @@ export default function MapView({ events, detections, basemap, region, selected,
 
   useEffect(() => {
     const m = map.current, v = REGION_VIEW[region]
-    if (m && v && !airborneRef.current && !orthoRef.current && !multipassRef.current && !realfusionRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
+    if (m && v && !airborneRef.current && !orthoRef.current && !multipassRef.current && !realfusionRef.current && !desmokeRef.current) m.flyTo({ center: v.center, zoom: v.zoom })
   }, [region])
 
   useEffect(() => {
@@ -273,6 +335,15 @@ export default function MapView({ events, detections, basemap, region, selected,
     const run = () => (realfusion ? addRealfusion(true) : removeRealfusion())
     if (m.isStyleLoaded()) run(); else m.once('idle', run)
   }, [realfusion])
+
+  // toggle Desmoke before/after overlay
+  useEffect(() => {
+    desmokeRef.current = desmoke
+    const m = map.current
+    if (!m) return
+    const run = () => (desmoke ? addDesmoke(true) : removeDesmoke())
+    if (m.isStyleLoaded()) run(); else m.once('idle', run)
+  }, [desmoke])
 
   if (!MAPBOX_TOKEN) {
     return <div className="h-full w-full flex items-center justify-center text-center text-gray-300 p-8">
